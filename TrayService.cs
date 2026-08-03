@@ -36,7 +36,7 @@ public sealed class TrayService : IDisposable
         _notifyIcon = new NotifyIcon
         {
             Icon = _icon,
-            Text = "LightTranslate · 普通 HIGH · 精校 MAX",
+            Text = GetNormalTooltip(),
             ContextMenuStrip = menu,
             Visible = true
         };
@@ -123,13 +123,25 @@ public sealed class TrayService : IDisposable
     {
         _continuousItem.Text = enabled ? "停止固定选区连续翻译 · HIGH" : "开启固定选区连续翻译";
         _notifyIcon.Text = enabled
-            ? "LightTranslate · 连续翻译中 · HIGH"
-            : "LightTranslate · 普通 HIGH · 精校 MAX";
+            ? $"LightTranslate · {GetProtocolShortName()} · 连续 HIGH"
+            : GetNormalTooltip();
 
         var previousIcon = _icon;
         _icon = CreateTrayIcon(enabled);
         _notifyIcon.Icon = _icon;
         previousIcon.Dispose();
+    }
+
+    private static string GetNormalTooltip()
+    {
+        return $"LightTranslate · {GetProtocolShortName()} · HIGH / MAX";
+    }
+
+    private static string GetProtocolShortName()
+    {
+        return TranslationApiProtocolPolicy.Resolve(SettingsStore.Load()) == TranslationApiProtocol.Responses
+            ? "Responses"
+            : "Chat";
     }
 
     public void Dispose()

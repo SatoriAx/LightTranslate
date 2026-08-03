@@ -36,4 +36,4 @@
 
 ## 当前阶段
 
-当前版本采用 WPF/.NET 10 单文件架构、托盘与全局快捷键、DPAPI 密钥存储、PP-OCRv5 中英日本地 OCR；DeepSeek V4 Flash 普通翻译使用 HIGH，看懂与精校使用 MAX。
+当前版本采用 WPF/.NET 10 单文件架构、托盘与全局快捷键、DPAPI 密钥存储、PP-OCRv5 中英日本地 OCR；DeepSeek 官方 V4 Flash 默认使用原生 Responses API，其他供应商保留 Chat Completions，普通翻译使用 HIGH，看懂与精校使用 MAX。

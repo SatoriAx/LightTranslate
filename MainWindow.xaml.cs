@@ -170,7 +170,7 @@ public partial class MainWindow : Window
     {
         var settings = SettingsStore.Load();
         return !string.IsNullOrWhiteSpace(settings.Model) && SecretStore.HasApiKey()
-            ? $"{settings.Model} · 普通 HIGH / 精校 MAX"
+            ? $"{settings.Model} · {TranslationApiProtocolPolicy.GetResolvedDisplayName(settings)} · HIGH / MAX"
             : "需要配置 AI";
     }
 
@@ -220,11 +220,13 @@ public partial class MainWindow : Window
                 ? "固定选区监听中 · HIGH"
                 : _languagesSwapped ? "自然表达 · HIGH" : "均衡翻译 · HIGH"
         };
+        var activeSettings = SettingsStore.Load();
+        var activeProtocol = TranslationApiProtocolPolicy.GetResolvedDisplayName(activeSettings);
         ServiceStateText.Text = action switch
         {
-            TranslationAction.Explain => "正在以 MAX 解释原文与语气…",
-            TranslationAction.Polish => "正在以 MAX 核对并精校译文…",
-            _ => "正在请求 DeepSeek V4 Flash · HIGH…"
+            TranslationAction.Explain => $"正在通过 {activeProtocol} · MAX 解释原文与语气…",
+            TranslationAction.Polish => $"正在通过 {activeProtocol} · MAX 核对并精校译文…",
+            _ => $"正在请求 {activeSettings.Model} · {activeProtocol} · HIGH…"
         };
 
         var streamed = new StringBuilder();

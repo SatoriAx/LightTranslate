@@ -1,4 +1,4 @@
-LightTranslate v0.5.6 单文件版
+LightTranslate v0.5.7 单文件版
 
 日常使用：
 1. 只需要 LightTranslate.exe，无需解压模型或 DLL。
@@ -9,6 +9,12 @@ LightTranslate v0.5.6 单文件版
 6. Ctrl + Alt + F：开启或停止固定选区连续翻译。
 7. 翻译中点击主按钮或按 Esc：取消当前请求。
 8. Esc 或鼠标右键：取消截图。
+
+v0.5.7 Responses API：
+- DeepSeek 官方 deepseek-v4-flash 在“自动”模式下使用原生 Responses API。
+- 其他 OpenAI-compatible 服务继续使用 Chat Completions。
+- 设置页可手动选择自动、Responses API 或 Chat Completions。
+- 普通翻译为 HIGH，看懂与精校为 MAX。
 
 v0.5.6 GitHub 发布版：
 - 无边框主窗口左上角已改为正式折页交汇图标。

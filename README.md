@@ -48,6 +48,8 @@
 </tr>
 </table>
 
+> **v0.5.7**：DeepSeek 官方 `deepseek-v4-flash` 在“自动”模式下默认使用原生 Responses API；其他 OpenAI-compatible 服务继续使用 Chat Completions。
+
 ## 功能
 
 ### 翻译入口
@@ -68,12 +70,13 @@
 
 ### AI 翻译
 
-- 支持 OpenAI-compatible Chat Completions 接口
-- 推荐使用 **DeepSeek 官方 `deepseek-v4-flash`**
-- 普通、截图、剪贴板和连续翻译使用 `reasoning_effort=high`
-- **看懂**与**精校**使用 `reasoning_effort=max`
-- 全模式保持 thinking enabled，并以 SSE 流式显示结果
-- 60 秒无流数据自动中止，支持主动取消与失败重试
+- 原生支持 **Responses API** 与 OpenAI-compatible **Chat Completions** 双协议
+- 推荐使用 **DeepSeek 官方 `deepseek-v4-flash`**，自动选择原生 Responses API
+- 普通、截图、剪贴板和连续翻译使用 HIGH
+- **看懂**与**精校**使用 MAX
+- Responses 使用 `reasoning.effort`；Chat Completions 使用 `thinking` 与 `reasoning_effort`
+- 支持 `response.completed`、`response.incomplete`、`response.failed` 等语义化流事件
+- 60 秒无流数据自动中止，支持主动取消、异常断流识别与失败重试
 
 ### 辅助能力
 
@@ -109,11 +112,12 @@ LightTranslate-windows-x64.exe
 | --- | --- |
 | Base URL | `https://api.deepseek.com` |
 | Model | `deepseek-v4-flash` |
+| API 类型 | `自动（推荐）` |
 | API Key | 在 DeepSeek 控制台申请的 Key |
 
 点击 **测试连接**。Key 会使用当前 Windows 用户的 DPAPI 加密，不会写入源码、EXE 或普通 JSON。
 
-也可以配置其他兼容 OpenAI Chat Completions 的服务，但需要支持当前请求参数与 SSE 流式响应。
+“自动”模式只在 DeepSeek 官方 `deepseek-v4-flash` 上启用 Responses，其他服务默认保持 Chat Completions。也可以手动指定协议，但目标服务必须支持对应请求格式与 SSE 事件。
 
 ### 2. 开始翻译
 
@@ -166,7 +170,7 @@ OCR 缓存目录：
 | 截图 | Win32 / System.Drawing · PerMonitorV2 DPI |
 | OCR | RapidOcrNet · PP-OCRv5 Mobile · ONNX Runtime |
 | 图像处理 | SkiaSharp / System.Drawing |
-| AI | OpenAI-compatible Chat Completions · SSE streaming |
+| AI | DeepSeek Responses API · OpenAI-compatible Chat Completions · semantic SSE |
 | 密钥 | Windows DPAPI CurrentUser |
 | 发布 | Windows x64 framework-dependent single-file EXE |
 
@@ -176,7 +180,8 @@ OCR 缓存目录：
 LightTranslate/
 ├─ MainWindow.*                 主翻译窗口
 ├─ CaptureOverlayWindow.*       截图框选层
-├─ TranslationService.cs        AI 请求与 SSE 流解析
+├─ TranslationService.cs        Responses / Chat 双协议请求与 SSE 解析
+├─ TranslationApiProtocolPolicy.cs  自动协议路由策略
 ├─ OcrService.cs                OCR 与阅读顺序重建
 ├─ OcrModelStore.cs             内嵌模型释放与 SHA-256 校验
 ├─ SecretStore.cs               DPAPI 密钥存储
@@ -222,11 +227,12 @@ dotnet publish -c Release
 - Local PP-OCRv5 recognition for Chinese, English and Japanese
 - Japanese vertical-text reading-order reconstruction
 - Screenshot, clipboard, manual input and repeated-region translation
-- Streaming DeepSeek V4 Flash translation with HIGH / MAX effort routing
+- Native DeepSeek V4 Flash Responses API with Chat Completions fallback
+- Streaming HIGH / MAX reasoning-effort routing
 - DPAPI-encrypted API keys, local history and terminology
 - No account, ads, telemetry or screenshot upload
 - Single portable Windows x64 EXE
 
 Download the latest build from [GitHub Releases](https://github.com/SatoriAx/LightTranslate/releases/latest).
 
-Keywords: Windows screenshot translator, OCR translator, clipboard translator, Japanese OCR, vertical Japanese text OCR, DeepSeek translator, PP-OCRv5 desktop app, local-first translation tool.
+Keywords: Windows screenshot translator, OCR translator, clipboard translator, Japanese OCR, vertical Japanese text OCR, DeepSeek Responses API translator, PP-OCRv5 desktop app, local-first translation tool.

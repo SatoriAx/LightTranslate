@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.7
+
+- DeepSeek 官方 `deepseek-v4-flash` 默认切换到原生 Responses API
+- 增加自动、Responses API、Chat Completions 三种协议设置
+- Responses 使用 `instructions`、`input` 与 `reasoning.effort`
+- 支持语义化 SSE 完成、截断和失败事件，异常断流不再静默返回部分译文
+- 其他 OpenAI-compatible 服务继续使用 Chat Completions
+- HIGH / MAX 分层、取消、60 秒无数据超时与连续翻译保持不变
+
 ## 0.5.6
 
 - 正式公开发布版本

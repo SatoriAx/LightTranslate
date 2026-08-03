@@ -112,6 +112,13 @@ public partial class App : Application
             return true;
         }
 
+        if (args.Length == 2 && args[0].Equals("--responses-smoke", StringComparison.OrdinalIgnoreCase))
+        {
+            RunResponsesApiSmokeTest(args[1]);
+            Shutdown();
+            return true;
+        }
+
         if (args.Length == 3 && args[0].Equals("--ocr-smoke", StringComparison.OrdinalIgnoreCase))
         {
             RunOcrSmokeTest(args[1], args[2]);
@@ -159,6 +166,7 @@ public partial class App : Application
             var settings = SettingsStore.Load();
             settings.BaseUrl = provider.BaseUrl.Trim();
             settings.Model = provider.Model.Trim();
+            settings.ApiProtocol = TranslationApiProtocolPolicy.NormalizeSetting(provider.ApiProtocol);
             settings.ReasoningEffort = "high";
             SettingsStore.Save(settings);
             SecretStore.SaveApiKey(provider.ApiKey);
@@ -334,6 +342,160 @@ public partial class App : Application
             result.Translation = result.Success ? "EFFORT_PAYLOADS=PASS" : "EFFORT_PAYLOADS=FAIL";
             if (!result.Success)
                 result.Error = "普通翻译 HIGH 或看懂 MAX 的请求载荷不符合策略";
+        }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.Error = ex.Message;
+        }
+        finally
+        {
+            listener.Stop();
+            try
+            {
+                if (Directory.Exists(testDirectory))
+                    Directory.Delete(testDirectory, true);
+            }
+            catch
+            {
+            }
+        }
+
+        File.WriteAllText(outputPath, JsonSerializer.Serialize(result, new JsonSerializerOptions
+        {
+            WriteIndented = true
+        }));
+    }
+
+    private static void RunResponsesApiSmokeTest(string outputPath)
+    {
+        var result = new SmokeTestResult();
+        var testDirectory = Path.Combine(Path.GetTempPath(), "LightTranslate-responses-smoke-" + Guid.NewGuid().ToString("N"));
+        Environment.SetEnvironmentVariable("LIGHTTRANSLATE_DATA_DIR", testDirectory);
+
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        try
+        {
+            listener.Start();
+            var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            var capturedRequests = new List<string>();
+            var serverTask = Task.Run(async () =>
+            {
+                var responseBodies = new[]
+                {
+                    "event: response.reasoning_text.delta\n" +
+                    "data: {\"type\":\"response.reasoning_text.delta\",\"delta\":\"hidden\"}\n\n" +
+                    "data: [DONE]\n\n" +
+                    "event: response.output_text.delta\n" +
+                    "data: {\"delta\":\"O\"}\n\n" +
+                    "data: {\"type\":\"response.output_text.delta\",\"delta\":\"K\"}\n\n" +
+                    "event: response.completed\n" +
+                    "data: {\"response\":{\"status\":\"completed\",\"output\":[]}}\n\n",
+                    "data: {\"type\":\"response.output_text.delta\",\"delta\":\"MAX\"}\n\n" +
+                    "data: {\"type\":\"response.completed\",\"response\":{\"status\":\"completed\",\"output\":[]}}\n\n",
+                    "data: {\"type\":\"response.incomplete\",\"response\":{\"status\":\"incomplete\",\"incomplete_details\":{\"reason\":\"max_output_tokens\"}}}\n\n",
+                    "data: {\"type\":\"response.failed\",\"response\":{\"status\":\"failed\",\"error\":{\"message\":\"test failure\"}}}\n\n"
+                };
+
+                foreach (var responseBody in responseBodies)
+                {
+                    using var client = await listener.AcceptTcpClientAsync();
+                    await using var stream = client.GetStream();
+                    capturedRequests.Add(await ReadLocalHttpRequestAsync(stream));
+
+                    var body = Encoding.UTF8.GetBytes(responseBody);
+                    var headers = Encoding.ASCII.GetBytes(
+                        $"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n");
+                    await stream.WriteAsync(headers);
+                    await stream.WriteAsync(body);
+                    await stream.FlushAsync();
+                }
+            });
+
+            SettingsStore.Save(new AppSettings
+            {
+                BaseUrl = $"http://127.0.0.1:{port}/v1",
+                Model = "deepseek-v4-flash",
+                ApiProtocol = TranslationApiProtocolPolicy.ResponsesSetting,
+                ReasoningEffort = "high"
+            });
+            SecretStore.SaveApiKey("test-key");
+
+            var service = new TranslationService();
+            var translateResult = service.TranslateStreamingAsync(
+                    "Hello",
+                    "Simplified Chinese",
+                    TranslationAction.Translate,
+                    existingTranslation: null,
+                    onDelta: null)
+                .GetAwaiter()
+                .GetResult();
+            var explainResult = service.TranslateStreamingAsync(
+                    "Hello",
+                    "Simplified Chinese",
+                    TranslationAction.Explain,
+                    existingTranslation: null,
+                    onDelta: null)
+                .GetAwaiter()
+                .GetResult();
+
+            var incompleteObserved = false;
+            try
+            {
+                service.TranslateAsync("Incomplete", "Simplified Chinese").GetAwaiter().GetResult();
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("token", StringComparison.OrdinalIgnoreCase))
+            {
+                incompleteObserved = true;
+            }
+
+            var failureObserved = false;
+            try
+            {
+                service.TranslateAsync("Failure", "Simplified Chinese").GetAwaiter().GetResult();
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("test failure", StringComparison.Ordinal))
+            {
+                failureObserved = true;
+            }
+
+            serverTask.GetAwaiter().GetResult();
+
+            var highPayloadValid = capturedRequests.Count >= 1 &&
+                                   capturedRequests[0].StartsWith("POST /v1/responses ", StringComparison.Ordinal) &&
+                                   capturedRequests[0].Contains("\"reasoning\":{\"effort\":\"high\"}", StringComparison.Ordinal) &&
+                                   capturedRequests[0].Contains("\"instructions\":", StringComparison.Ordinal) &&
+                                   capturedRequests[0].Contains("\"input\":\"Hello\"", StringComparison.Ordinal) &&
+                                   !capturedRequests[0].Contains("\"messages\":", StringComparison.Ordinal) &&
+                                   !capturedRequests[0].Contains("\"thinking\":", StringComparison.Ordinal);
+            var maxPayloadValid = capturedRequests.Count >= 2 &&
+                                  capturedRequests[1].Contains("\"reasoning\":{\"effort\":\"max\"}", StringComparison.Ordinal);
+            var automaticDeepSeekResponses = TranslationApiProtocolPolicy.Resolve(new AppSettings
+            {
+                BaseUrl = "https://api.deepseek.com",
+                Model = "deepseek-v4-flash",
+                ApiProtocol = TranslationApiProtocolPolicy.AutoSetting
+            }) == TranslationApiProtocol.Responses;
+            var automaticGenericChat = TranslationApiProtocolPolicy.Resolve(new AppSettings
+            {
+                BaseUrl = "https://example.com/v1",
+                Model = "another-model",
+                ApiProtocol = TranslationApiProtocolPolicy.AutoSetting
+            }) == TranslationApiProtocol.ChatCompletions;
+
+            result.Success = translateResult == "OK" &&
+                             explainResult == "MAX" &&
+                             highPayloadValid &&
+                             maxPayloadValid &&
+                             incompleteObserved &&
+                             failureObserved &&
+                             automaticDeepSeekResponses &&
+                             automaticGenericChat;
+            result.Translation = result.Success
+                ? "RESPONSES_PAYLOAD_STREAM_TERMINALS_AND_AUTO_ROUTING=PASS"
+                : "RESPONSES_PAYLOAD_STREAM_TERMINALS_AND_AUTO_ROUTING=FAIL";
+            if (!result.Success)
+                result.Error = "Responses 请求载荷、语义事件或自动协议路由不符合预期";
         }
         catch (Exception ex)
         {
@@ -605,11 +767,24 @@ public partial class App : Application
             result.HistoryCount = HistoryStore.Load().Count;
             var historyRecovered = result.HistoryCount == 1;
 
-            SettingsStore.Save(new AppSettings { BaseUrl = "https://first.example/v1", Model = "first", ReasoningEffort = "high" });
-            SettingsStore.Save(new AppSettings { BaseUrl = "https://second.example/v1", Model = "second", ReasoningEffort = "low" });
+            SettingsStore.Save(new AppSettings
+            {
+                BaseUrl = "https://first.example/v1",
+                Model = "first",
+                ApiProtocol = TranslationApiProtocolPolicy.AutoSetting,
+                ReasoningEffort = "high"
+            });
+            SettingsStore.Save(new AppSettings
+            {
+                BaseUrl = "https://second.example/v1",
+                Model = "second",
+                ApiProtocol = TranslationApiProtocolPolicy.ResponsesSetting,
+                ReasoningEffort = "low"
+            });
             File.WriteAllText(Path.Combine(testDirectory, "settings.json"), "{ invalid json");
             var recoveredSettings = SettingsStore.Load();
             result.SettingsRecovery = recoveredSettings.BaseUrl == "https://first.example/v1" &&
+                                      recoveredSettings.ApiProtocol == TranslationApiProtocolPolicy.AutoSetting &&
                                       recoveredSettings.ReasoningEffort == "high";
 
             SecretStore.SaveApiKey("first-key");
@@ -1115,6 +1290,7 @@ public sealed class ProviderBootstrap
 {
     public string BaseUrl { get; set; } = string.Empty;
     public string Model { get; set; } = string.Empty;
+    public string ApiProtocol { get; set; } = TranslationApiProtocolPolicy.AutoSetting;
     public string ApiKey { get; set; } = string.Empty;
 }
 

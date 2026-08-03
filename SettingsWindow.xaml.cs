@@ -27,6 +27,8 @@ public partial class SettingsWindow : Window
         var settings = SettingsStore.Load();
         BaseUrlBox.Text = settings.BaseUrl;
         ModelBox.Text = settings.Model;
+        ApiProtocolBox.SelectedValue = settings.ApiProtocol;
+        UpdateApiProtocolHint();
         ApiKeyBox.Password = SecretStore.LoadApiKey();
         AutoCopyCheck.IsChecked = settings.AutoCopyTranslation;
         EnhanceSmallTextCheck.IsChecked = settings.EnhanceSmallText;
@@ -52,10 +54,12 @@ public partial class SettingsWindow : Window
         try
         {
             SaveCurrentSettings();
-            SaveStateText.Text = "正在以普通翻译 HIGH 测试连接…";
+            var settings = SettingsStore.Load();
+            var protocol = TranslationApiProtocolPolicy.GetResolvedDisplayName(settings);
+            SaveStateText.Text = $"正在以 {protocol} · HIGH 测试连接…";
             var service = new TranslationService();
             var result = await service.TranslateAsync("Hello, world.", "Simplified Chinese");
-            SaveStateText.Text = $"连接正常 · HIGH · {TrimPreview(result)}";
+            SaveStateText.Text = $"连接正常 · {protocol} · HIGH · {TrimPreview(result)}";
         }
         catch (Exception ex)
         {
@@ -68,6 +72,8 @@ public partial class SettingsWindow : Window
         var settings = SettingsStore.Load();
         settings.BaseUrl = BaseUrlBox.Text.Trim();
         settings.Model = ModelBox.Text.Trim();
+        settings.ApiProtocol = ApiProtocolBox.SelectedValue?.ToString()
+                               ?? TranslationApiProtocolPolicy.AutoSetting;
         settings.ReasoningEffort = "high";
         settings.AutoCopyTranslation = AutoCopyCheck.IsChecked == true;
         settings.EnhanceSmallText = EnhanceSmallTextCheck.IsChecked == true;
@@ -81,6 +87,26 @@ public partial class SettingsWindow : Window
 
         ApplyStartupSetting(settings.StartWithWindows);
         return keyUpdated;
+    }
+
+    private void ApiProtocolBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        UpdateApiProtocolHint();
+    }
+
+    private void UpdateApiProtocolHint()
+    {
+        if (ApiProtocolHintText is null || ApiProtocolBox is null)
+            return;
+
+        ApiProtocolHintText.Text = ApiProtocolBox.SelectedValue?.ToString() switch
+        {
+            TranslationApiProtocolPolicy.ResponsesSetting =>
+                "使用 /responses 与语义化 SSE；适合原生支持 Responses 的服务",
+            TranslationApiProtocolPolicy.ChatCompletionsSetting =>
+                "使用 /chat/completions；兼容传统 OpenAI-compatible 服务",
+            _ => "DeepSeek 官方 V4 Flash 自动使用原生 Responses API"
+        };
     }
 
     private void ClearApiKey_Click(object sender, RoutedEventArgs e)

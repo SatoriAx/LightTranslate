@@ -6,6 +6,7 @@ public sealed class AppSettings
 {
     public string BaseUrl { get; set; } = "https://api.deepseek.com";
     public string Model { get; set; } = "deepseek-v4-flash";
+    public string ApiProtocol { get; set; } = TranslationApiProtocolPolicy.AutoSetting;
     public string ReasoningEffort { get; set; } = "high";
     public string TargetLanguage { get; set; } = "简体中文";
     public bool AutoHideOnFocusLoss { get; set; } = false;
@@ -28,12 +29,14 @@ public static class SettingsStore
     public static AppSettings Load()
     {
         var settings = AtomicFileStore.LoadJson(FilePath, () => new AppSettings());
+        settings.ApiProtocol = TranslationApiProtocolPolicy.NormalizeSetting(settings.ApiProtocol);
         settings.ReasoningEffort = "high";
         return settings;
     }
 
     public static void Save(AppSettings settings)
     {
+        settings.ApiProtocol = TranslationApiProtocolPolicy.NormalizeSetting(settings.ApiProtocol);
         settings.ReasoningEffort = "high";
         AtomicFileStore.SaveJson(FilePath, settings);
     }
