@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 下载最新版本
+    url: https://github.com/SatoriAx/LightTranslate/releases/latest
+    about: 提交问题前请先测试最新 Release

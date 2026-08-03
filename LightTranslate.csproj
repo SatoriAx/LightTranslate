@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>assets\LightTranslate.ico</ApplicationIcon>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <AssemblyName>LightTranslate</AssemblyName>
+    <Product>LightTranslate</Product>
+    <Version>0.5.6</Version>
+    <Authors>SatoriAx</Authors>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>embedded</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <PackageReference Include="RapidOcrNet" Version="3.0.0" />
+    <Resource Include="assets\LightTranslate.ico" />
+    <Resource Include="assets\LightTranslate-icon-ui.png" />
+    <EmbeddedResource Include="models\v5\ch_PP-OCRv5_mobile_det.onnx"
+                      LogicalName="LightTranslate.OcrModels.ch_PP-OCRv5_mobile_det.onnx" />
+    <EmbeddedResource Include="models\v5\ch_PP-LCNet_x0_25_textline_ori_cls_mobile.onnx"
+                      LogicalName="LightTranslate.OcrModels.ch_PP-LCNet_x0_25_textline_ori_cls_mobile.onnx" />
+    <EmbeddedResource Include="models\v5\ch_PP-OCRv5_rec_mobile_infer.onnx"
+                      LogicalName="LightTranslate.OcrModels.ch_PP-OCRv5_rec_mobile_infer.onnx" />
+    <EmbeddedResource Include="models\v5\ppocrv5_dict.txt"
+                      LogicalName="LightTranslate.OcrModels.ppocrv5_dict.txt" />
+  </ItemGroup>
+
+  <Target Name="RemoveLooseModelsBuild" AfterTargets="CopyModelsBuild">
+    <RemoveDir Directories="$(TargetDir)models" />
+  </Target>
+
+  <Target Name="RemoveLooseSingleFileArtifacts" AfterTargets="CopyModelsPublish">
+    <RemoveDir Directories="$(PublishDir)models" />
+    <Delete Files="$(PublishDir)onnxruntime.lib;$(PublishDir)onnxruntime_providers_shared.lib" />
+  </Target>
+
+</Project>

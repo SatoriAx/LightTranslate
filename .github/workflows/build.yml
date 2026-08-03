@@ -1,0 +1,45 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  windows-x64:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      - name: Publish single EXE
+        run: dotnet publish -c Release --no-restore -o publish
+
+      - name: Verify single-file output
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem publish -Recurse -File)
+          if ($files.Count -ne 1 -or $files[0].Name -ne 'LightTranslate.exe') {
+            $files | Select-Object FullName, Length
+            throw 'Publish output is not a single LightTranslate.exe'
+          }
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LightTranslate-windows-x64
+          path: publish/LightTranslate.exe
+          if-no-files-found: error

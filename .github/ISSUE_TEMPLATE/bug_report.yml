@@ -1,0 +1,55 @@
+name: Bug 报告
+about: 报告崩溃、OCR、截图坐标或翻译问题
+title: "[Bug] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请勿粘贴 API Key、私人截图或未脱敏日志。
+  - type: input
+    id: version
+    attributes:
+      label: LightTranslate 版本
+      placeholder: 例如 0.5.6
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows 与显示设置
+      placeholder: Windows 10 22H2；主屏 150%；双显示器
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 问题类型
+      options:
+        - 截图 / 坐标 / 多显示器
+        - OCR 识别
+        - AI 翻译 / 流式响应
+        - 快捷键 / 托盘
+        - 设置 / 历史 / 术语
+        - 崩溃 / 闪退
+        - 其他
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 从启动软件开始，按顺序写出操作。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 预期结果与实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 已脱敏日志或错误
+      description: 日志位于 %APPDATA%\LightTranslate\lighttranslate.log。请先删除敏感内容。
