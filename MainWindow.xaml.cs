@@ -41,8 +41,13 @@ public partial class MainWindow : Window
 
         Deactivated += (_, _) =>
         {
-            if (SettingsStore.Load().AutoHideOnFocusLoss && IsVisible)
-                Hide();
+            if (!SettingsStore.Load().AutoHideOnFocusLoss || !IsVisible)
+                return;
+
+            if (Application.Current.Windows.OfType<SettingsWindow>().Any(window => window.IsVisible))
+                return;
+
+            Hide();
         };
     }
 

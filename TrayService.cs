@@ -41,8 +41,22 @@ public sealed class TrayService : IDisposable
             Visible = true
         };
 
-        _notifyIcon.DoubleClick += (_, _) => _app.ShowMainWindow(true);
+        _notifyIcon.DoubleClick += (_, _) => _app.ShowMainWindow();
         _app.ContinuousCaptureStateChanged += UpdateContinuousItem;
+    }
+
+    public void NotifyUpdateAvailable(UpdateInfo info)
+    {
+        _notifyIcon.BalloonTipTitle = $"LightTranslate {info.Version} 可用";
+        _notifyIcon.BalloonTipText = "点击气泡打开设置页，一键下载更新";
+        _notifyIcon.BalloonTipClicked += OnUpdateBalloonClicked;
+        _notifyIcon.ShowBalloonTip(8000);
+    }
+
+    private void OnUpdateBalloonClicked(object? sender, EventArgs e)
+    {
+        _notifyIcon.BalloonTipClicked -= OnUpdateBalloonClicked;
+        _app.OpenSettings();
     }
 
     private static ToolStripMenuItem CreateItem(string text, EventHandler onClick)

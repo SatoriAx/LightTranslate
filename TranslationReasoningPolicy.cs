@@ -4,7 +4,13 @@ internal static class TranslationReasoningPolicy
 {
     public static string GetEffort(TranslationAction action)
     {
-        return action == TranslationAction.Translate ? "high" : "max";
+        var settings = SettingsStore.Load();
+        return action switch
+        {
+            TranslationAction.Explain => settings.ExplainEffort,
+            TranslationAction.Polish => settings.PolishEffort,
+            _ => settings.TranslateEffort
+        };
     }
 
     public static string GetDisplayEffort(TranslationAction action)

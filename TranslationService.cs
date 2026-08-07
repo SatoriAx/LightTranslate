@@ -224,7 +224,7 @@ public sealed class TranslationService
     {
         var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-        request.Headers.UserAgent.ParseAdd("LightTranslate/0.5.7");
+        request.Headers.UserAgent.ParseAdd("LightTranslate/0.6.0");
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
         request.Content = new StringContent(
             JsonSerializer.Serialize(payload),

@@ -24,6 +24,7 @@ public partial class App : Application
     private bool _continuousBusy;
     private string _lastContinuousImageHash = string.Empty;
     private string _lastContinuousOcrText = string.Empty;
+    private TranslationOverlayWindow? _translationOverlay;
 
     public bool IsContinuousCaptureEnabled => _continuousTimer.IsEnabled;
     public event Action<bool>? ContinuousCaptureStateChanged;
@@ -52,6 +53,28 @@ public partial class App : Application
         _continuousTimer.Tick += async (_, _) => await CaptureContinuousRegionAsync();
         _trayService = new TrayService(this);
         _mainWindow.Show();
+
+        UpdateService.TryCleanupStaleArtifacts();
+        CheckForUpdatesInBackground();
+    }
+
+    private void CheckForUpdatesInBackground()
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(6));
+                var update = await UpdateService.CheckForUpdateAsync();
+                if (update is null)
+                    return;
+
+                await Dispatcher.InvokeAsync(() => _trayService?.NotifyUpdateAvailable(update));
+            }
+            catch
+            {
+            }
+        });
     }
 
     private bool TryRunCommandMode(string[] args)
@@ -661,7 +684,7 @@ public partial class App : Application
             var logWritten = File.Exists(AppLogService.GetLogPath()) &&
                              File.ReadAllText(AppLogService.GetLogPath()).Contains("韧性测试", StringComparison.Ordinal);
             var effortPolicyWorks =
-                TranslationReasoningPolicy.GetEffort(TranslationAction.Translate) == "high" &&
+                TranslationReasoningPolicy.GetEffort(TranslationAction.Translate) == "medium" &&
                 TranslationReasoningPolicy.GetEffort(TranslationAction.Explain) == "max" &&
                 TranslationReasoningPolicy.GetEffort(TranslationAction.Polish) == "max";
 
@@ -1075,9 +1098,6 @@ public partial class App : Application
 
     public void ToggleContinuousCapture()
     {
-        if (_mainWindow is null)
-            return;
-
         if (_continuousTimer.IsEnabled)
         {
             StopContinuousCapture("连续翻译已停止");
@@ -1088,7 +1108,7 @@ public partial class App : Application
         if (settings.LastCaptureRegion is not { IsUsable: true })
         {
             ShowMainWindow();
-            _mainWindow.ShowExternalError("请先按 Ctrl + Alt + X 框选一个固定区域");
+            _mainWindow?.ShowExternalError("请先按 Ctrl + Alt + X 框选一个固定区域");
             return;
         }
 
@@ -1096,28 +1116,26 @@ public partial class App : Application
         _lastContinuousOcrText = string.Empty;
         _continuousTimer.Start();
         ContinuousCaptureStateChanged?.Invoke(true);
-        _mainWindow.UpdateContinuousState(true);
-        ShowMainWindow();
-        _mainWindow.ShowProcessingStatus("固定选区连续翻译已开启 · HIGH · Ctrl + Alt + F 可停止");
+        _mainWindow?.UpdateContinuousState(true);
+        if (_mainWindow is { IsVisible: true })
+            _mainWindow.ShowProcessingStatus("固定选区连续翻译已开启 · HIGH · Ctrl + Alt + F 可停止");
         _ = CaptureContinuousRegionAsync();
     }
 
     public async void TriggerRepeatScreenshot()
     {
-        if (_mainWindow is null)
-            return;
-
         try
         {
             var settings = SettingsStore.Load();
             if (settings.LastCaptureRegion is not { IsUsable: true } region)
             {
                 ShowMainWindow();
-                _mainWindow.ShowExternalError("还没有上次选区，请先按 Ctrl + Alt + X 框选一次");
+                _mainWindow?.ShowExternalError("还没有上次选区，请先按 Ctrl + Alt + X 框选一次");
                 return;
             }
 
-            _mainWindow.Hide();
+            if (_mainWindow is { IsVisible: true })
+                _mainWindow.Hide();
             var capture = await Task.Run(() => ScreenCaptureService.CaptureRegion(region));
             await ProcessCaptureAsync(capture, "正在重新识别上次选区…");
         }
@@ -1125,7 +1143,7 @@ public partial class App : Application
         {
             AppLogService.LogException("重复上次选区失败", ex);
             ShowMainWindow();
-            _mainWindow.ShowExternalError(ex.Message);
+            _mainWindow?.ShowExternalError(ex.Message);
         }
     }
 
@@ -1162,7 +1180,7 @@ public partial class App : Application
 
     private async Task CaptureContinuousRegionAsync()
     {
-        if (_continuousBusy || _mainWindow is null || !_continuousTimer.IsEnabled)
+        if (_continuousBusy || !_continuousTimer.IsEnabled)
             return;
 
         _continuousBusy = true;
@@ -1188,8 +1206,8 @@ public partial class App : Application
                 return;
             }
 
-            _mainWindow.ShowProcessingStatus("固定选区内容已变化，正在以 HIGH 翻译…");
-            var translated = await _mainWindow.LoadOcrTextAndTranslateAsync(text);
+            var overlay = EnsureOverlay(region);
+            var translated = await overlay.LoadAndTranslateAsync(text);
             if (translated)
             {
                 _lastContinuousImageHash = imageHash;
@@ -1203,7 +1221,8 @@ public partial class App : Application
         catch (Exception ex)
         {
             AppLogService.LogException("固定选区连续翻译失败", ex);
-            _mainWindow.ShowExternalError($"连续翻译：{ex.Message}");
+            if (_translationOverlay is { IsVisible: true })
+                _translationOverlay.ShowError($"连续翻译：{ex.Message}");
         }
         finally
         {
@@ -1226,6 +1245,7 @@ public partial class App : Application
     private void StopContinuousCapture(string status)
     {
         _continuousTimer.Stop();
+        _translationOverlay?.CancelActiveRequest();
         _mainWindow?.CancelActiveRequest();
         _lastContinuousImageHash = string.Empty;
         _lastContinuousOcrText = string.Empty;
@@ -1234,23 +1254,44 @@ public partial class App : Application
         _mainWindow?.ShowProcessingStatus(status);
     }
 
+    private TranslationOverlayWindow EnsureOverlay(CaptureRegion region)
+    {
+        if (_translationOverlay is null || !_translationOverlay.IsLoaded)
+        {
+            _translationOverlay = new TranslationOverlayWindow(region);
+            _translationOverlay.DismissRequested += () => _translationOverlay = null;
+            _translationOverlay.ShowWithoutActivation();
+        }
+        else
+        {
+            _translationOverlay.UpdateAnchor(region);
+            _translationOverlay.ShowWithoutActivation();
+        }
+
+        return _translationOverlay;
+    }
+
     private async Task ProcessCaptureAsync(CaptureSelectionResult capture, string status)
     {
-        if (_mainWindow is null)
-            return;
-
         try
         {
-            ShowMainWindow();
-            _mainWindow.ShowProcessingStatus(status);
+            var overlay = EnsureOverlay(capture.Region);
+            overlay.ShowOcrState(status);
             var text = await _ocrService.RecognizeAsync(capture.ImagePath);
-            await _mainWindow.LoadOcrTextAndTranslateAsync(text);
+            await overlay.LoadAndTranslateAsync(text);
         }
         catch (Exception ex)
         {
             AppLogService.LogException("截图 OCR 或翻译失败", ex);
-            ShowMainWindow();
-            _mainWindow.ShowExternalError(ex.Message);
+            if (_translationOverlay is { IsVisible: true })
+            {
+                _translationOverlay.ShowError(ex.Message);
+            }
+            else
+            {
+                ShowMainWindow();
+                _mainWindow?.ShowExternalError(ex.Message);
+            }
         }
         finally
         {
@@ -1268,6 +1309,8 @@ public partial class App : Application
     public void ExitApplication()
     {
         _continuousTimer.Stop();
+        _translationOverlay?.CancelActiveRequest();
+        _translationOverlay?.CloseProgrammatically();
         _trayService?.Dispose();
         _settingsWindow?.Close();
         _mainWindow?.ForceClose();

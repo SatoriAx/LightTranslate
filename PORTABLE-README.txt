@@ -1,4 +1,6 @@
-LightTranslate v0.5.7 单文件版
+LightTranslate v0.6.0 单文件版
+
+新增：截图后译文直接显示在选区附近浮层（右键 / Esc / × 关闭），普通翻译档位 MEDIUM 更跟手。
 
 日常使用：
 1. 只需要 LightTranslate.exe，无需解压模型或 DLL。

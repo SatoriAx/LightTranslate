@@ -10,6 +10,7 @@ public partial class SettingsWindow : Window
     private const string StartupValueName = "LightTranslate";
     private readonly DispatcherTimer _clearKeyResetTimer;
     private bool _clearKeyArmed;
+    private UpdateInfo? _pendingUpdate;
 
     public SettingsWindow()
     {
@@ -29,11 +30,83 @@ public partial class SettingsWindow : Window
         ModelBox.Text = settings.Model;
         ApiProtocolBox.SelectedValue = settings.ApiProtocol;
         UpdateApiProtocolHint();
+        TranslateEffortBox.SelectedValue = settings.TranslateEffort;
+        ExplainEffortBox.SelectedValue = settings.ExplainEffort;
+        PolishEffortBox.SelectedValue = settings.PolishEffort;
         ApiKeyBox.Password = SecretStore.LoadApiKey();
         AutoCopyCheck.IsChecked = settings.AutoCopyTranslation;
         EnhanceSmallTextCheck.IsChecked = settings.EnhanceSmallText;
         AutoHideCheck.IsChecked = settings.AutoHideOnFocusLoss;
         StartWithWindowsCheck.IsChecked = IsStartupEnabled();
+    }
+
+    private async void CheckUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        if (_pendingUpdate is not null)
+        {
+            await DownloadAndUpdateAsync(_pendingUpdate);
+            return;
+        }
+
+        try
+        {
+            CheckUpdateButton.IsEnabled = false;
+            CheckUpdateLabel.Text = "检查中…";
+            UpdateStatusText.Text = $"当前版本 {UpdateService.CurrentVersion.ToString(3)}";
+
+            var info = await UpdateService.CheckForUpdateAsync();
+            if (info is null)
+            {
+                UpdateStatusText.Text = "已是最新版本";
+                CheckUpdateLabel.Text = "检查更新";
+                return;
+            }
+
+            _pendingUpdate = info;
+            UpdateStatusText.Text = $"发现新版本 {info.Version}";
+            CheckUpdateLabel.Text = "下载并更新";
+        }
+        catch (Exception ex)
+        {
+            UpdateStatusText.Text = $"检查失败：{ex.Message}";
+        }
+        finally
+        {
+            CheckUpdateButton.IsEnabled = true;
+        }
+    }
+
+    private async Task DownloadAndUpdateAsync(UpdateInfo info)
+    {
+        try
+        {
+            CheckUpdateButton.IsEnabled = false;
+            CheckUpdateLabel.Text = "下载中…";
+            UpdateStatusText.Text = "正在连接 GitHub…";
+
+            var targetDirectory = UpdateService.DefaultTargetDirectory;
+            if (string.IsNullOrWhiteSpace(targetDirectory))
+            {
+                UpdateStatusText.Text = "无法定位程序目录，请手动下载更新";
+                CheckUpdateButton.IsEnabled = true;
+                CheckUpdateLabel.Text = "检查更新";
+                return;
+            }
+
+            var progress = new Progress<int>(percent =>
+                UpdateStatusText.Text = $"正在下载 {percent}%");
+            var newExe = await UpdateService.DownloadAsync(info, targetDirectory, progress);
+
+            UpdateStatusText.Text = "校验完成，正在重启应用…";
+            UpdateService.LaunchUpdater(newExe);
+            Application.Current.Shutdown();
+        }
+        catch (Exception ex)
+        {
+            UpdateStatusText.Text = $"更新失败：{ex.Message}";
+            CheckUpdateLabel.Text = "重试";
+            CheckUpdateButton.IsEnabled = true;
+        }
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)
@@ -56,10 +129,11 @@ public partial class SettingsWindow : Window
             SaveCurrentSettings();
             var settings = SettingsStore.Load();
             var protocol = TranslationApiProtocolPolicy.GetResolvedDisplayName(settings);
-            SaveStateText.Text = $"正在以 {protocol} · HIGH 测试连接…";
+            var effort = settings.TranslateEffort.ToUpperInvariant();
+            SaveStateText.Text = $"正在以 {protocol} · {effort} 测试连接…";
             var service = new TranslationService();
             var result = await service.TranslateAsync("Hello, world.", "Simplified Chinese");
-            SaveStateText.Text = $"连接正常 · {protocol} · HIGH · {TrimPreview(result)}";
+            SaveStateText.Text = $"连接正常 · {protocol} · {effort} · {TrimPreview(result)}";
         }
         catch (Exception ex)
         {
@@ -74,7 +148,9 @@ public partial class SettingsWindow : Window
         settings.Model = ModelBox.Text.Trim();
         settings.ApiProtocol = ApiProtocolBox.SelectedValue?.ToString()
                                ?? TranslationApiProtocolPolicy.AutoSetting;
-        settings.ReasoningEffort = "high";
+        settings.TranslateEffort = TranslateEffortBox.SelectedValue?.ToString() ?? "medium";
+        settings.ExplainEffort = ExplainEffortBox.SelectedValue?.ToString() ?? "max";
+        settings.PolishEffort = PolishEffortBox.SelectedValue?.ToString() ?? "max";
         settings.AutoCopyTranslation = AutoCopyCheck.IsChecked == true;
         settings.EnhanceSmallText = EnhanceSmallTextCheck.IsChecked == true;
         settings.AutoHideOnFocusLoss = AutoHideCheck.IsChecked == true;

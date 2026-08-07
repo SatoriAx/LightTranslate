@@ -60,7 +60,60 @@
                         <Setter Property="Foreground" Value="#FFF2EEE6" />
                         <Setter Property="Background" Value="#FF202326" />
                         <Setter Property="Padding" Value="10,7" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="ComboBoxItem">
+                                    <Border x:Name="ItemBorder" Background="{TemplateBinding Background}"
+                                            CornerRadius="6" Padding="{TemplateBinding Padding}" Margin="3,1">
+                                        <ContentPresenter />
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsHighlighted" Value="True">
+                                            <Setter TargetName="ItemBorder" Property="Background" Value="#2ED3B78F" />
+                                        </Trigger>
+                                        <Trigger Property="IsEnabled" Value="False">
+                                            <Setter Property="Foreground" Value="#66F2EEE6" />
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
                     </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton" Focusable="False" ClickMode="Press"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="ToggleBorder" Background="#FF202326" CornerRadius="10"
+                                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                                            <TextBlock Text="▾" Foreground="{StaticResource TextSecondaryBrush}"
+                                                       FontSize="9" HorizontalAlignment="Right" Margin="0,0,10,0"
+                                                       VerticalAlignment="Center" />
+                                        </Border>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter Margin="{TemplateBinding Padding}" VerticalAlignment="Center" HorizontalAlignment="Left"
+                                              IsHitTestVisible="False"
+                                              Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" />
+                            <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
+                                <Border Background="#FF202326" BorderBrush="{StaticResource HairlineStrongBrush}"
+                                        BorderThickness="1" CornerRadius="10" MinWidth="{TemplateBinding ActualWidth}"
+                                        Margin="0,4,0,0" Padding="3">
+                                    <ScrollViewer MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                        <ItemsPresenter />
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
                 </Setter.Value>
             </Setter>
         </Style>
@@ -118,15 +171,40 @@
                                            Text="DeepSeek 官方 V4 Flash 自动使用原生 Responses API"
                                            FontSize="9.5" Foreground="{StaticResource TextMutedBrush}"
                                            Margin="2,0,0,11" />
-                                <Grid Margin="0,0,0,11">
-                                    <TextBlock Text="推理档位" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}"
-                                               VerticalAlignment="Center" />
-                                    <Border HorizontalAlignment="Right" CornerRadius="8" Background="#18D3B78F"
-                                            BorderBrush="#42D3B78F" BorderThickness="1" Padding="10,4">
-                                        <TextBlock Text="普通 HIGH / 看懂·精校 MAX" FontSize="10" FontWeight="SemiBold"
-                                                   Foreground="{StaticResource AccentBrightBrush}" />
-                                    </Border>
+                                <TextBlock Text="推理档位（各功能独立可选）" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6" />
+                                <Grid Margin="0,0,0,6">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Grid.Row="0" Text="普通翻译" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,3,12,8" />
+                                    <ComboBox Grid.Row="0" Grid.Column="1" x:Name="TranslateEffortBox" Style="{StaticResource SettingComboBox}" SelectedValuePath="Tag" Margin="0,3,0,8" HorizontalAlignment="Right" Width="150">
+                                        <ComboBoxItem Content="低" Tag="low" />
+                                        <ComboBoxItem Content="中" Tag="medium" IsSelected="True" />
+                                        <ComboBoxItem Content="高" Tag="high" />
+                                        <ComboBoxItem Content="最高" Tag="max" />
+                                    </ComboBox>
+                                    <TextBlock Grid.Row="1" Text="看懂原文" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,3,12,8" />
+                                    <ComboBox Grid.Row="1" Grid.Column="1" x:Name="ExplainEffortBox" Style="{StaticResource SettingComboBox}" SelectedValuePath="Tag" Margin="0,3,0,8" HorizontalAlignment="Right" Width="150">
+                                        <ComboBoxItem Content="低" Tag="low" />
+                                        <ComboBoxItem Content="中" Tag="medium" />
+                                        <ComboBoxItem Content="高" Tag="high" />
+                                        <ComboBoxItem Content="最高" Tag="max" IsSelected="True" />
+                                    </ComboBox>
+                                    <TextBlock Grid.Row="2" Text="精校译文" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center" Margin="0,3,12,0" />
+                                    <ComboBox Grid.Row="2" Grid.Column="1" x:Name="PolishEffortBox" Style="{StaticResource SettingComboBox}" SelectedValuePath="Tag" Margin="0,3,0,0" HorizontalAlignment="Right" Width="150">
+                                        <ComboBoxItem Content="低" Tag="low" />
+                                        <ComboBoxItem Content="中" Tag="medium" />
+                                        <ComboBoxItem Content="高" Tag="high" />
+                                        <ComboBoxItem Content="最高" Tag="max" IsSelected="True" />
+                                    </ComboBox>
                                 </Grid>
+                                <TextBlock Text="档位越高越准但越慢；截图翻译建议普通翻译保持中档" FontSize="9.5" Foreground="{StaticResource TextMutedBrush}" Margin="2,0,0,12" />
                                 <TextBlock Text="API Key" FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}" />
                                 <PasswordBox x:Name="ApiKeyBox" Style="{StaticResource SettingPasswordBox}" Margin="0,7,0,9" />
                                 <Grid>
@@ -193,6 +271,27 @@
                                     </Border>
                                 </StackPanel>
                             </Grid>
+                        </Border>
+
+                        <TextBlock Text="更新" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="2,0,0,8" />
+                        <Border CornerRadius="16" Background="#0AFFFFFF" BorderBrush="{StaticResource HairlineBrush}"
+                                BorderThickness="1" Padding="15,12">
+                            <StackPanel>
+                                <TextBlock Text="自动检查 GitHub Releases 上的新版本，下载并校验后替换本程序。"
+                                           FontSize="10.5" Foreground="{StaticResource TextSecondaryBrush}"
+                                           TextWrapping="Wrap" />
+                                <Grid Margin="0,10,0,0">
+                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <Button x:Name="CheckUpdateButton" Style="{StaticResource OutlineButtonStyle}"
+                                                Click="CheckUpdate_Click" Padding="11,7">
+                                            <TextBlock x:Name="CheckUpdateLabel" Text="检查更新"
+                                                       Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" />
+                                        </Button>
+                                        <TextBlock x:Name="UpdateStatusText" Text="" FontSize="9.5" Margin="10,0,0,0"
+                                                   Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
                         </Border>
                     </StackPanel>
                 </ScrollViewer>

@@ -12,7 +12,7 @@
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <AssemblyName>LightTranslate</AssemblyName>
     <Product>LightTranslate</Product>
-    <Version>0.5.7</Version>
+    <Version>0.6.0</Version>
     <Authors>SatoriAx</Authors>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
@@ -24,9 +24,14 @@
   <ItemGroup>
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
+    <Compile Remove="LightTranslate.Updater\**\*.cs" />
+    <EmbeddedResource Remove="LightTranslate.Updater\**" />
+    <None Remove="LightTranslate.Updater\**" />
     <PackageReference Include="RapidOcrNet" Version="3.0.0" />
     <Resource Include="assets\LightTranslate.ico" />
     <Resource Include="assets\LightTranslate-icon-ui.png" />
+    <EmbeddedResource Include="LightTranslate.Updater\bin\Release\net10.0\LightTranslate.Updater.exe"
+                      LogicalName="LightTranslate.Updater.exe" />
     <EmbeddedResource Include="models\v5\ch_PP-OCRv5_mobile_det.onnx"
                       LogicalName="LightTranslate.OcrModels.ch_PP-OCRv5_mobile_det.onnx" />
     <EmbeddedResource Include="models\v5\ch_PP-LCNet_x0_25_textline_ori_cls_mobile.onnx"
@@ -36,6 +41,11 @@
     <EmbeddedResource Include="models\v5\ppocrv5_dict.txt"
                       LogicalName="LightTranslate.OcrModels.ppocrv5_dict.txt" />
   </ItemGroup>
+
+  <Target Name="BuildUpdaterBeforeBuild" BeforeTargets="BeforeBuild">
+    <MSBuild Projects="LightTranslate.Updater\LightTranslate.Updater.csproj"
+             Targets="Restore;Build" Properties="Configuration=Release" />
+  </Target>
 
   <Target Name="RemoveLooseModelsBuild" AfterTargets="CopyModelsBuild">
     <RemoveDir Directories="$(TargetDir)models" />
