@@ -155,7 +155,9 @@ public static class UpdateService
             NewExe = newExePath,
             TargetExe = targetExe,
             BackupExe = targetExe + ".bak",
-            MainProcessName = "LightTranslate",
+            // 进程名从当前 exe 文件名动态取：用户运行的可能是重命名后的文件
+            // （如 LightTranslate-windows-x64.exe），硬编码进程名会让更新器等待落空
+            MainProcessName = Path.GetFileNameWithoutExtension(targetExe),
             Restart = true
         };
         var markerPath = Path.Combine(updaterDir, "update.json");
