@@ -39,8 +39,8 @@ Write-Host "== 3. 源码包 =="
 $srcTemp = Join-Path $env:TEMP "LightTranslate-src-$Version"
 if (Test-Path $srcTemp) { Remove-Item $srcTemp -Recurse -Force }
 New-Item -ItemType Directory -Path $srcTemp -Force | Out-Null
-robocopy $repoRoot $srcTemp /E /XD bin obj publish-* release-* .git .agents `
-    /XF *.user *.userprefs > $null
+robocopy $repoRoot $srcTemp /E /XD bin obj publish publish-* release-* .git .agents LightTranslate.Updater\bin LightTranslate.Updater\obj `
+    /XF *.user *.userprefs *.exe *.zip settings.json history.json terminology.json api-key.dat *.log *.bak *-smoke*.json *-smoke*.png > $null
 $zip = Join-Path $releaseRoot "LightTranslate-v$Version-source.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }
 Compress-Archive -Path "$srcTemp\*" -DestinationPath $zip -CompressionLevel Optimal
@@ -65,8 +65,7 @@ if (Test-Path $notes) {
     $notesText = $notesText.Replace('{{ZIP_SHA256}}', $zipHash)
     Set-Content -Path $notes -Value $notesText -Encoding UTF8 -NoNewline
 }
-gh release create "v$Version" --repo $Repo --title $relTitle --notes-file $notes `
-    --assets "$exe,$exe.sha256,$zip"
+gh release create "v$Version" $exe "$exe.sha256" $zip --repo $Repo --title $relTitle --notes-file $notes
 if ($LASTEXITCODE -ne 0) { throw "gh release create 失败" }
 
 Write-Host "== 完成 =="

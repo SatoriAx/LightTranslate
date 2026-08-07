@@ -32,6 +32,15 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(Path.GetTempPath(), "lt-args.log"),
+                $"[{DateTime.Now:HH:mm:ss}] args={string.Join("|", e.Args)}{Environment.NewLine}");
+        }
+        catch
+        {
+        }
         DispatcherUnhandledException += App_DispatcherUnhandledException;
         TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
         AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
@@ -77,6 +86,61 @@ public partial class App : Application
         });
     }
 
+    private static void RunUpdateCheck()
+    {
+        WriteUpdateCheckLog($"UPDATE_CHECK enter current={UpdateService.CurrentVersion}");
+        try
+        {
+            var info = UpdateService.CheckForUpdateAsync().GetAwaiter().GetResult();
+            WriteUpdateCheckLog(info is null
+                ? $"UPDATE_CHECK current={UpdateService.CurrentVersion} latest=current"
+                : $"UPDATE_CHECK current={UpdateService.CurrentVersion} latest={info.Version} tag={info.TagName}");
+        }
+        catch (Exception ex)
+        {
+            WriteUpdateCheckLog($"UPDATE_CHECK error={ex.Message}");
+        }
+    }
+
+    private static void RunUpdateApply()
+    {
+        try
+        {
+            var info = UpdateService.CheckForUpdateAsync().GetAwaiter().GetResult();
+            if (info is null)
+            {
+                WriteUpdateCheckLog($"UPDATE_APPLY current={UpdateService.CurrentVersion} no-update");
+                return;
+            }
+
+            WriteUpdateCheckLog($"UPDATE_APPLY current={UpdateService.CurrentVersion} downloading {info.Version}...");
+            var targetDirectory = UpdateService.DefaultTargetDirectory;
+            var newExe = UpdateService.DownloadAsync(info, targetDirectory).GetAwaiter().GetResult();
+            WriteUpdateCheckLog("UPDATE_APPLY downloaded, launching updater...");
+            UpdateService.LaunchUpdater(newExe);
+            WriteUpdateCheckLog("UPDATE_APPLY updater-launched, exiting");
+            Environment.Exit(0);
+        }
+        catch (Exception ex)
+        {
+            WriteUpdateCheckLog($"UPDATE_APPLY error={ex.Message}");
+            Environment.Exit(1);
+        }
+    }
+
+    private static void WriteUpdateCheckLog(string message)
+    {
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(Path.GetTempPath(), "LightTranslate-update-check.log"),
+                message + Environment.NewLine);
+        }
+        catch
+        {
+        }
+    }
+
     private bool TryRunCommandMode(string[] args)
     {
         if (args.Length == 2 && args[0].Equals("--configure-provider-file", StringComparison.OrdinalIgnoreCase))
@@ -118,6 +182,19 @@ public partial class App : Application
         {
             RunWindowSmokeTest(args[1]);
             Shutdown();
+            return true;
+        }
+
+        if (args.Length == 1 && args[0].Equals("--update-check", StringComparison.OrdinalIgnoreCase))
+        {
+            RunUpdateCheck();
+            Shutdown();
+            return true;
+        }
+
+        if (args.Length == 1 && args[0].Equals("--update-apply", StringComparison.OrdinalIgnoreCase))
+        {
+            RunUpdateApply();
             return true;
         }
 

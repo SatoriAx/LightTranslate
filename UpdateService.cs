@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
@@ -17,14 +18,26 @@ public sealed record UpdateInfo(
 public static class UpdateService
 {
     private const string Repo = "SatoriAx/LightTranslate";
-    private const string ReleaseApiUrl = $"https://api.github.com/repos/{Repo}/releases/latest";
     private const string AssetExeName = "LightTranslate-windows-x64.exe";
     private const string AssetShaName = AssetExeName + ".sha256";
     private const string UpdaterResourceName = "LightTranslate.Updater.exe";
 
     private static readonly HttpClient Client = new()
     {
-        Timeout = TimeSpan.FromSeconds(90)
+        Timeout = TimeSpan.FromSeconds(25)
+    };
+
+    private static readonly HttpClient CheckClient = new(new HttpClientHandler
+    {
+        AllowAutoRedirect = false
+    })
+    {
+        Timeout = TimeSpan.FromSeconds(25)
+    };
+
+    private static readonly HttpClient DownloadClient = new()
+    {
+        Timeout = TimeSpan.FromMinutes(10)
     };
 
     public static Version CurrentVersion =>
@@ -37,39 +50,29 @@ public static class UpdateService
     {
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, ReleaseApiUrl);
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"https://github.com/{Repo}/releases/latest");
             request.Headers.UserAgent.ParseAdd("LightTranslate/1.0 (auto-update)");
-            request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
 
-            using var response = await Client.SendAsync(request, cancellationToken);
-            if (!response.IsSuccessStatusCode)
+            using var response = await CheckClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                .ConfigureAwait(false);
+            if (response.StatusCode != HttpStatusCode.Found && response.StatusCode != HttpStatusCode.RedirectKeepVerb)
                 return null;
 
-            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-            var root = doc.RootElement;
+            var location = response.Headers.Location?.ToString() ?? string.Empty;
+            if (!location.Contains("/tag/", StringComparison.OrdinalIgnoreCase))
+                return null;
 
-            var tag = root.TryGetProperty("tag_name", out var tagElement) ? tagElement.GetString() ?? "" : "";
+            var tag = location.TrimEnd('/').Split('/')[^1];
             if (!Version.TryParse(tag.TrimStart('v'), out var remoteVersion))
                 return null;
             if (remoteVersion <= CurrentVersion)
                 return null;
 
-            string? exeUrl = null;
-            string? shaUrl = null;
-            if (root.TryGetProperty("assets", out var assets))
-            {
-                foreach (var asset in assets.EnumerateArray())
-                {
-                    var name = asset.TryGetProperty("name", out var nameElement) ? nameElement.GetString() ?? "" : "";
-                    var url = asset.TryGetProperty("browser_download_url", out var urlElement) ? urlElement.GetString() ?? "" : "";
-                    if (name == AssetExeName)
-                        exeUrl = url;
-                    else if (name == AssetShaName)
-                        shaUrl = url;
-                }
-            }
-
-            return exeUrl is null ? null : new UpdateInfo(remoteVersion, tag, exeUrl, shaUrl ?? "");
+            return new UpdateInfo(
+                remoteVersion,
+                tag,
+                $"https://github.com/{Repo}/releases/download/{tag}/{AssetExeName}",
+                $"https://github.com/{Repo}/releases/download/{tag}/{AssetShaName}");
         }
         catch
         {
@@ -92,20 +95,22 @@ public static class UpdateService
             using (var request = new HttpRequestMessage(HttpMethod.Get, info.ExeDownloadUrl))
             {
                 request.Headers.UserAgent.ParseAdd("LightTranslate/1.0 (auto-update)");
-                using var response = await Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                using var response = await DownloadClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                    .ConfigureAwait(false);
                 response.EnsureSuccessStatusCode();
 
                 var total = response.Content.Headers.ContentLength ?? 0L;
-                await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
+                await using var source = await response.Content.ReadAsStreamAsync(cancellationToken)
+                    .ConfigureAwait(false);
                 await using var target = File.Create(tempExe);
                 var buffer = new byte[81920];
                 long read = 0;
                 while (true)
                 {
-                    var count = await source.ReadAsync(buffer, cancellationToken);
+                    var count = await source.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
                     if (count <= 0)
                         break;
-                    await target.WriteAsync(buffer.AsMemory(0, count), cancellationToken);
+                    await target.WriteAsync(buffer.AsMemory(0, count), cancellationToken).ConfigureAwait(false);
                     read += count;
                     if (total > 0)
                         progress?.Report((int)(read * 100 / total));
@@ -117,16 +122,15 @@ public static class UpdateService
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get, info.Sha256DownloadUrl);
                 request.Headers.UserAgent.ParseAdd("LightTranslate/1.0 (auto-update)");
-                using var response = await Client.SendAsync(request, cancellationToken);
+                using var response = await DownloadClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
                 if (response.IsSuccessStatusCode)
-                    expected = (await response.Content.ReadAsStringAsync(cancellationToken)).Trim();
+                    expected = (await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false)).Trim();
             }
 
             if (expected.Length == 64)
             {
-                var actual = Convert.ToHexString(await SHA256.HashDataAsync(
-                    File.OpenRead(tempExe),
-                    cancellationToken));
+                var actual = Convert.ToHexString(SHA256.HashData(
+                    await File.ReadAllBytesAsync(tempExe, cancellationToken).ConfigureAwait(false)));
                 if (!actual.Equals(expected, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException("下载文件 SHA-256 校验不匹配，已中止更新");
             }
