@@ -1,146 +1,216 @@
-# LightTranslate
+<p align="center">
+  <img src="docs/hero.png" alt="LightTranslate — Windows screenshot OCR and clipboard AI translator" width="100%" />
+</p>
 
-Windows 原生轻量 AI 翻译工具，当前版本为 0.6.1。
+<p align="center">
+  <strong>轻量、安静、准确的 Windows 截图 OCR 与剪贴板 AI 翻译工具。</strong><br />
+  Local-first Windows screenshot translator with Chinese / English / Japanese OCR, streaming AI translation and privacy-first storage.
+</p>
 
-## v0.6.1 自动更新
+<p align="center">
+  <a href="https://github.com/SatoriAx/LightTranslate/releases/latest"><img src="https://img.shields.io/github/v/release/SatoriAx/LightTranslate?style=flat-square&color=D3B78F&label=Release" alt="Release" /></a>
+  <a href="https://github.com/SatoriAx/LightTranslate/releases"><img src="https://img.shields.io/github/downloads/SatoriAx/LightTranslate/total?style=flat-square&color=94AA9A&label=Downloads" alt="Downloads" /></a>
+  <img src="https://img.shields.io/badge/Windows-10%20%2F%2011-2B3035?style=flat-square&logo=windows11" alt="Windows 10/11" />
+  <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat-square&logo=dotnet" alt=".NET 10" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-F7F4EE?style=flat-square&labelColor=2B3035" alt="MIT License" /></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/SatoriAx/LightTranslate/releases/latest/download/LightTranslate-windows-x64.exe"><strong>下载最新单文件版</strong></a>
+  ·
+  <a href="#使用方法">使用方法</a>
+  ·
+  <a href="#隐私与安全">隐私与安全</a>
+  ·
+  <a href="#english">English</a>
+</p>
+
+<p align="center">
+  <img src="docs/demo.gif" alt="LightTranslate live translation demo" width="740" />
+</p>
+
+---
+
+## 为什么做 LightTranslate
+
+很多翻译软件逐渐变成了带账号、会员、文档中心和大量设置的综合平台。LightTranslate 只保留一条清晰路径：
+
+> **拿到文字 → 本地识别 → AI 翻译 → 复制结果。**
+
+它适合游戏界面、视频字幕、日语软件、网页报错、聊天消息和任何无法直接复制的屏幕文字。截图留在本机，只有 OCR 识别后的文本会发送给你配置的 AI 服务。
+
+<table>
+<tr>
+<td width="25%"><strong>📷 截图翻译</strong><br />框选后译文直接浮现在选区附近，无需打开主窗口。</td>
+<td width="25%"><strong>📋 剪贴板翻译</strong><br />复制文字后快速带入，无需切换到浏览器。</td>
+<td width="25%"><strong>縦 日语竖排</strong><br />PP-OCRv5 中英日统一识别，重建日语竖排阅读顺序。</td>
+<td width="25%"><strong>🔄 自动更新</strong><br />GitHub Releases 检查、校验、替换、重启全自动。</td>
+</tr>
+</table>
+
+> **v0.6.1**：截图翻译改为就地浮层，各功能推理档位独立可选，并加入 GitHub Releases 自动更新链路。
+
+## 功能
+
+### 翻译入口
+
+- **手动输入翻译**：粘贴或编辑原文，`Ctrl + Enter` 开始翻译
+- **剪贴板翻译**：`Ctrl + Alt + T` 读取剪贴板文字
+- **截图 OCR 翻译**：`Ctrl + Alt + X` 框选当前屏幕区域
+- **重复上次选区**：`Ctrl + Alt + R` 重新识别固定位置
+- **固定选区连续翻译**：`Ctrl + Alt + F` 监听游戏对白、慢速字幕或状态面板
+
+截图链路不再弹出主窗口：OCR 完成后，译文在选区附近的小浮层中流式显示，支持右键 / `Esc` / × 关闭与一键复制；浮层不会出现在下一次截图里。
+
+### 本地 OCR
+
+- 内置 **PP-OCRv5 Mobile** ONNX 模型
+- 中文、英文、日语统一识别
+- 支持日语假名、汉字混排及竖排文本
+- 低置信度或小文字时自动执行增强识别，并与原图结果择优
+- OCR 模型首次使用时释放到本地校验缓存，损坏会自动恢复
+
+### AI 翻译
+
+- 原生支持 **Responses API** 与 OpenAI-compatible **Chat Completions** 双协议
+- 推荐使用 **DeepSeek 官方 `deepseek-v4-flash`**，自动选择原生 Responses API
+- **普通翻译**（手动、剪贴板、截图、连续）默认 MEDIUM，首字延迟低
+- **看懂**与**精校**默认 MAX，保留疑难内容的深度处理能力
+- 设置页可按功能独立选择档位：低 / 中 / 高 / 最高（`low` / `medium` / `high` / `max`）
+- Responses 使用 `reasoning.effort`；Chat Completions 使用 `thinking` 与 `reasoning_effort`
+- 支持 `response.completed`、`response.incomplete`、`response.failed` 等语义化流事件
+- 60 秒无流数据自动中止，支持主动取消、异常断流识别与失败重试
+
+### 自动更新
 
 - 启动后自动检查 GitHub Releases，有新版本时托盘气泡提醒
-- 设置页可手动「检查更新 / 下载并更新」，下载显示进度
-- 下载后校验 SHA-256，由内嵌单文件更新器替换并自动重启，旧版备份为 `.bak`
+- 设置页可手动「检查更新 / 下载并更新」，下载时显示进度
+- 下载后校验 SHA-256，由内嵌单文件更新器替换并自动重启
+- 旧版备份为同目录 `.bak`，更新失败自动还原
 - 版本检查走 `releases/latest` 重定向，不依赖 GitHub API
-- 发布新版本：`tools\publish-release.ps1 -Version x.y.z`，自动完成构建、校验和、源码包与 Release
 
-## v0.6.0 就地截图翻译浮层
+### 辅助能力
 
-- 截图后不再弹出主窗口，译文直接在选区附近的小浮层中流式显示
-- `Ctrl + Alt + X` 框选翻译、`Ctrl + Alt + R` 重复上次选区、`Ctrl + Alt + F` 固定选区连续翻译，全部走浮层
-- 右键 / Esc / × 关闭浮层，支持复制译文
-- 设置页新增各功能独立推理档位（普通翻译 / 看懂原文 / 精校译文，低 / 中 / 高 / 最高）
-- 普通翻译默认「中」档，首字延迟明显下降（看懂 / 精校默认「最高」）
-- 修复打开设置后主窗口输入框被剪贴板内容误填充、设置页下拉框白底白字问题
+- **看懂**：用简洁中文解释原文含义、语气、歧义和必要背景
+- **精校**：结合原文修正当前译文的误译、漏译与术语不一致
+- **个人术语表**：只在原文实际命中时注入指定译法
+- **最近记录**：本地保存最近 20 条文字记录，不保存截图
+- **自动复制**：可选在翻译完成后自动复制结果
+- **系统托盘**：关闭窗口后安静驻留；连续翻译开启时图标显示绿色状态点
 
-## v0.5.7 原生 Responses API
+## 下载
 
-- DeepSeek 官方 `deepseek-v4-flash` 在“自动”模式下默认使用原生 Responses API
-- Responses 请求使用 `instructions`、`input` 与 `reasoning.effort`
-- 流式解析支持 `response.output_text.delta`、`response.completed`、`response.incomplete` 与 `response.failed`
-- Responses 流不依赖 `data: [DONE]`，完成事件前异常断流会明确报错
-- 其他 OpenAI-compatible 服务继续使用 Chat Completions
-- 设置页可选择“自动（推荐）”“Responses API”或“Chat Completions”
-- 普通翻译保持 HIGH，看懂与精校保持 MAX
-
-## 推理档位策略
-
-Chat Completions 使用 `thinking.type=enabled` 与 `reasoning_effort`；Responses API 使用原生 `reasoning.effort`。设置页可按功能独立选择：
-
-| 功能 | 默认档位 | 可选 |
-| --- | --- | --- |
-| 普通翻译（手动、剪贴板、截图、连续） | `medium` | `low` / `medium` / `high` / `max` |
-| 看懂原文 | `max` | `low` / `medium` / `high` / `max` |
-| 精校译文 | `max` | `low` / `medium` / `high` / `max` |
-
-## v0.5.6 GitHub 发布版
-
-- 自定义无边框标题栏左上角改用正式折页交汇图标
-- 准备公开仓库演示素材、搜索关键词、README 与 Release
-
-## v0.5.5 正式图标
-
-- 采用折页交汇形态的石墨黑、象牙白与香槟金图标
-- ICO 包含 16、20、24、32、40、48、64、128 与 256 像素帧
-- EXE、主窗口、设置、历史、术语窗口与托盘统一使用正式图标
-- 固定选区连续翻译开启时，在正式托盘图标右下角叠加鼠尾草绿状态点
-- 新版本文件名可绕开 Windows 对旧 EXE 图标的缓存
-
-## v0.5.4 速度调整
-
-- 普通翻译链路由 MAX 调整为 HIGH，降低短文本和截图翻译等待时间
-- 看懂与精校继续使用 MAX，保留疑难内容的深度处理能力
-- 主窗口、处理状态、设置页和托盘明确显示当前档位
-- 自动化测试分别捕获普通翻译 HIGH 与看懂 MAX 的真实请求载荷
-
-## v0.5.3 单文件版
-
-日常使用只需要一个 `LightTranslate.exe`：
-
-- 托管程序集、SkiaSharp 与 ONNX Runtime 原生依赖收进单文件
-- 四个 PP-OCRv5 模型作为嵌入资源随 EXE 分发
-- 第一次使用 OCR 时释放到 `%LOCALAPPDATA%\LightTranslate\ocr-cache\v5`
-- 每次初始化都校验模型 SHA-256，缓存缺失或损坏时自动恢复
-- 仍为框架依赖发布，需要 Windows 已安装 .NET 10 Desktop Runtime
-- 设置、历史、术语与 DPAPI 加密密钥继续保存在用户数据目录
-
-源码归档用于维护、审计和重新构建；只使用软件时无需下载源码包。
-
-## v0.5.2 修复
-
-Windows 事件日志确认 v0.5.1 的闪退根因为：
+前往 [Releases](https://github.com/SatoriAx/LightTranslate/releases/latest) 下载：
 
 ```text
-System.ObjectDisposedException: The CancellationTokenSource has been disposed.
-at LightTranslate.MainWindow.RunActionAsync(...)
-at LightTranslate.MainWindow.Translate_Click(...)
+LightTranslate-windows-x64.exe
 ```
 
-旧实现会在请求结束时释放 `CancellationTokenSource`，但字段仍指向它；下一次翻译先调用旧对象的 `Cancel()`，异常发生在内部 try/catch 之外，并从 WPF `async void` 点击事件逃出，最终终止进程。
+- Windows 10 / 11 x64
+- 单文件、免安装
+- 双击运行，关闭按钮默认收起到系统托盘
+- 需要 [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)
 
-v0.5.2 使用 `TranslationCancellationManager` 管理请求：
+> EXE 约 50 MB，主要体积来自本地 ONNX Runtime 与 PP-OCRv5 模型。模型内嵌在单文件中，第一次使用 OCR 时会自动准备本地缓存。
 
-- 新请求只取消旧请求，不提前释放仍在收尾的对象
-- 每个请求仅在自己的 finally 中完成与释放
-- 旧请求完成时不会清除后来创建的新请求
-- 对已释放对象的取消有安全保护
-- 窗口关闭统一取消并释放当前请求
+## 使用方法
 
-同时增加：
+### 1. 配置 AI 接口
 
-- WPF `DispatcherUnhandledException` 全局保护
-- 后台任务未观察异常记录
-- 进程级异常记录
-- 本地日志 `%APPDATA%\LightTranslate\lighttranslate.log`
-- 日志超过 512KB 自动轮换到 `.old`
-- 当结果与原文完全相同时提示“可能是名称、型号或无需翻译”
+打开右上角 **设置**，填写：
 
-## v0.5.1 稳定性
+| 字段 | DeepSeek 官方示例 |
+| --- | --- |
+| Base URL | `https://api.deepseek.com` |
+| Model | `deepseek-v4-flash` |
+| API 类型 | `自动（推荐）` |
+| 推理档位 | 普通翻译「中」/ 看懂原文「最高」/ 精校译文「最高」，可独立调整 |
+| API Key | 在 DeepSeek 控制台申请的 Key |
 
-- SSE 连续 60 秒无数据时自动中止，不限制正常推理总时长
-- 设置、历史、术语、加密密钥采用临时文件写入和安全替换
-- 覆盖前保留 `.bak`，损坏文件隔离为 `.corrupt-*` 后从备份恢复
-- OCR 先识别原图，低置信度时才进行增强并择优
-- 连续模式失败后允许同一内容重试
-- 连续模式托盘绿点与实时推理档位状态
-- 设置页两次确认清除密钥
-- 历史清空二次确认
-- 术语错误行提示
+点击 **测试连接**。Key 会使用当前 Windows 用户的 DPAPI 加密，不会写入源码、EXE 或普通 JSON。
 
-## 核心能力
+“自动”模式只在 DeepSeek 官方 `deepseek-v4-flash` 上启用 Responses，其他服务默认保持 Chat Completions。也可以手动指定协议，但目标服务必须支持对应请求格式与 SSE 事件。
 
-- WPF + .NET 10 LTS
-- DeepSeek V4 Flash 原生 Responses API + OpenAI-compatible Chat Completions 双协议
-- 各功能独立推理档位（默认：普通 MEDIUM / 看懂与精校 MAX，设置页可调）
-- 中英日 PP-OCRv5 Mobile 本地 OCR
-- 日语横排与竖排阅读顺序整理
-- 流式输出与主动取消
-- 重复选区与固定选区连续翻译
-- 最近 20 条本地历史
-- 个人术语表
-- 看懂与精校
-- DPAPI 加密 API Key
-- GitHub Releases 自动更新
-- 无账户、遥测、云同步和截图历史
-
-## 快捷键
+### 2. 开始翻译
 
 | 快捷键 | 功能 |
 | --- | --- |
 | `Ctrl + Alt + T` | 读取剪贴板文字 |
 | `Ctrl + Alt + X` | 框选截图并翻译 |
-| `Ctrl + Alt + R` | 重复上次选区 |
+| `Ctrl + Alt + R` | 重复上次截图区域 |
 | `Ctrl + Alt + F` | 开启或停止固定选区连续翻译 |
-| `Ctrl + Enter` | 翻译当前文字 |
-| `Esc` | 取消当前请求、收起窗口或取消截图 |
+| `Ctrl + Enter` | 翻译当前原文 |
+| `Esc` | 取消请求、收起窗口或取消框选 |
 
-## 构建
+<p align="center">
+  <img src="docs/screenshot.png" alt="LightTranslate main window" width="740" />
+</p>
+
+## 隐私与安全
+
+```text
+屏幕截图 ──本机──> PP-OCRv5 ──识别文本──> 你配置的 AI API
+               │
+               └── 截图处理后删除，不上传、不写入历史
+```
+
+- 无账户系统、无广告、无遥测、无云同步
+- 截图只在本机进行 OCR
+- 只向 AI 服务发送 OCR 文本或手动输入文字
+- API Key 使用 Windows CurrentUser DPAPI 加密
+- 设置、历史、术语和密钥采用临时文件写入、安全替换与备份恢复
+- 损坏 JSON 会隔离为 `.corrupt-*`，可从 `.bak` 自动恢复
+- 本地日志只记录异常，不记录 API Key
+
+本地数据目录：
+
+```text
+%APPDATA%\LightTranslate
+```
+
+OCR 缓存目录：
+
+```text
+%LOCALAPPDATA%\LightTranslate\ocr-cache\v5
+```
+
+## 技术栈
+
+| 层 | 技术 |
+| --- | --- |
+| 桌面 UI | WPF · .NET 10 LTS |
+| 截图 | Win32 / System.Drawing · PerMonitorV2 DPI |
+| OCR | RapidOcrNet · PP-OCRv5 Mobile · ONNX Runtime |
+| 图像处理 | SkiaSharp / System.Drawing |
+| AI | DeepSeek Responses API · OpenAI-compatible Chat Completions · semantic SSE |
+| 密钥 | Windows DPAPI CurrentUser |
+| 更新 | GitHub Releases · SHA-256 校验 · 内嵌单文件更新器 |
+| 发布 | Windows x64 framework-dependent single-file EXE |
+
+## 项目结构
+
+```text
+LightTranslate/
+├─ MainWindow.*                 主翻译窗口
+├─ CaptureOverlayWindow.*       截图框选层
+├─ TranslationOverlayWindow.*   截图就地翻译浮层
+├─ TranslationService.cs        Responses / Chat 双协议请求与 SSE 解析
+├─ TranslationApiProtocolPolicy.cs  自动协议路由策略
+├─ TranslationReasoningPolicy.cs   各功能推理档位策略
+├─ UpdateService.cs             GitHub Releases 检查、下载与校验
+├─ LightTranslate.Updater/      内嵌单文件更新器（备份、替换、重启）
+├─ OcrService.cs                OCR 与阅读顺序重建
+├─ OcrModelStore.cs             内嵌模型释放与 SHA-256 校验
+├─ SecretStore.cs               DPAPI 密钥存储
+├─ AtomicFileStore.cs           设置与历史的原子写入/恢复
+├─ History* / Terminology*      历史和术语
+├─ assets/                      正式图标资源
+└─ models/v5/                   PP-OCRv5 模型与字典
+```
+
+## 从源码构建
+
+需要 Windows x64 与 [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)：
 
 ```powershell
 dotnet restore
@@ -148,4 +218,47 @@ dotnet build -c Release
 dotnet publish -c Release
 ```
 
-发布产物为 Windows x64 框架依赖单 EXE。
+发布目录中只会生成一个 `LightTranslate.exe`。OCR 模型会作为嵌入资源打入 EXE。
+
+发布新版本（自动完成构建、SHA-256、源码包与 GitHub Release）：
+
+```powershell
+.\tools\publish-release.ps1 -Version x.y.z -ReleaseNotesPath .\release-notes-x.y.z.md
+```
+
+## 当前限制
+
+- 截图框选限制在鼠标当前所在显示器，不支持一个选区横跨多台显示器
+- 固定选区连续翻译采用串行请求，优先保证准确度，不适合追逐高帧率字幕
+- 未签名的个人项目 EXE 可能触发 Windows SmartScreen 提示
+- 实际翻译速度受 AI 服务商负载、网络和 reasoning effort 影响
+- 自动更新依赖 GitHub 可达性；下载速度受网络环境影响
+
+## License
+
+[MIT](LICENSE) © 2026 SatoriAx
+
+第三方组件及模型许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+---
+
+<a id="english"></a>
+
+## English
+
+**LightTranslate** is a lightweight Windows screenshot OCR translator and clipboard AI translator built with WPF and .NET 10.
+
+- Local PP-OCRv5 recognition for Chinese, English and Japanese
+- Japanese vertical-text reading-order reconstruction
+- Inline translation overlay next to the screenshot selection (no main window)
+- Per-action reasoning effort selection (low / medium / high / max)
+- Screenshot, clipboard, manual input and repeated-region translation
+- Native DeepSeek V4 Flash Responses API with Chat Completions fallback
+- Automatic updates from GitHub Releases with SHA-256 verification
+- DPAPI-encrypted API keys, local history and terminology
+- No account, ads, telemetry or screenshot upload
+- Single portable Windows x64 EXE
+
+Download the latest build from [GitHub Releases](https://github.com/SatoriAx/LightTranslate/releases/latest).
+
+Keywords: Windows screenshot translator, OCR translator, clipboard translator, Japanese OCR, vertical Japanese text OCR, DeepSeek Responses API translator, PP-OCRv5 desktop app, local-first translation tool, auto-update translator.
