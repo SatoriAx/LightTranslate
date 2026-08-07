@@ -1,13 +1,23 @@
 # LightTranslate
 
-Windows 原生轻量 AI 翻译工具，当前版本为 0.6.0。
+Windows 原生轻量 AI 翻译工具，当前版本为 0.6.1。
+
+## v0.6.1 自动更新
+
+- 启动后自动检查 GitHub Releases，有新版本时托盘气泡提醒
+- 设置页可手动「检查更新 / 下载并更新」，下载显示进度
+- 下载后校验 SHA-256，由内嵌单文件更新器替换并自动重启，旧版备份为 `.bak`
+- 版本检查走 `releases/latest` 重定向，不依赖 GitHub API
+- 发布新版本：`tools\publish-release.ps1 -Version x.y.z`，自动完成构建、校验和、源码包与 Release
 
 ## v0.6.0 就地截图翻译浮层
 
 - 截图后不再弹出主窗口，译文直接在选区附近的小浮层中流式显示
 - `Ctrl + Alt + X` 框选翻译、`Ctrl + Alt + R` 重复上次选区、`Ctrl + Alt + F` 固定选区连续翻译，全部走浮层
 - 右键 / Esc / × 关闭浮层，支持复制译文
-- 普通翻译推理档位从 HIGH 调整为 MEDIUM，首字延迟明显下降（看懂/精校仍为 MAX）
+- 设置页新增各功能独立推理档位（普通翻译 / 看懂原文 / 精校译文，低 / 中 / 高 / 最高）
+- 普通翻译默认「中」档，首字延迟明显下降（看懂 / 精校默认「最高」）
+- 修复打开设置后主窗口输入框被剪贴板内容误填充、设置页下拉框白底白字问题
 
 ## v0.5.7 原生 Responses API
 
@@ -21,12 +31,13 @@ Windows 原生轻量 AI 翻译工具，当前版本为 0.6.0。
 
 ## 推理档位策略
 
-Chat Completions 使用 `thinking.type=enabled` 与 `reasoning_effort`；Responses API 使用原生 `reasoning.effort`。按用途分配推理强度：
+Chat Completions 使用 `thinking.type=enabled` 与 `reasoning_effort`；Responses API 使用原生 `reasoning.effort`。设置页可按功能独立选择：
 
-| 功能 | reasoning_effort |
-| --- | --- |
-| 手动翻译、剪贴板、截图、重复选区、固定选区连续翻译 | `high` |
-| 看懂、精校 | `max` |
+| 功能 | 默认档位 | 可选 |
+| --- | --- | --- |
+| 普通翻译（手动、剪贴板、截图、连续） | `medium` | `low` / `medium` / `high` / `max` |
+| 看懂原文 | `max` | `low` / `medium` / `high` / `max` |
+| 精校译文 | `max` | `low` / `medium` / `high` / `max` |
 
 ## v0.5.6 GitHub 发布版
 
@@ -106,7 +117,7 @@ v0.5.2 使用 `TranslationCancellationManager` 管理请求：
 
 - WPF + .NET 10 LTS
 - DeepSeek V4 Flash 原生 Responses API + OpenAI-compatible Chat Completions 双协议
-- 普通翻译 HIGH / 看懂与精校 MAX
+- 各功能独立推理档位（默认：普通 MEDIUM / 看懂与精校 MAX，设置页可调）
 - 中英日 PP-OCRv5 Mobile 本地 OCR
 - 日语横排与竖排阅读顺序整理
 - 流式输出与主动取消
@@ -115,6 +126,7 @@ v0.5.2 使用 `TranslationCancellationManager` 管理请求：
 - 个人术语表
 - 看懂与精校
 - DPAPI 加密 API Key
+- GitHub Releases 自动更新
 - 无账户、遥测、云同步和截图历史
 
 ## 快捷键
