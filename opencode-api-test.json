@@ -1,6 +1,0 @@
-{
-  "success": true,
-  "model": "deepseek-v4-flash",
-  "reasoning_tokens": 147,
-  "translation": "请发送需要翻译的内容。"
-}
